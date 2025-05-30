@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "693861239255",
+    "project_id": "gladiatorapp-8de5b",
+    "storage_bucket": "gladiatorapp-8de5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:693861239255:android:3d272760bda07475986392",
+        "android_client_info": {
+          "package_name": "com.example.gladiatorapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCc4B8wg3n2UpCjNZSYZIauD9aF5thfdIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
