@@ -27,6 +27,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       await _auth.signUp(
         _emailController.text.trim(),
         _passwordController.text.trim(),
+        _nameController.text.trim(),
+
       );
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/verify-email');

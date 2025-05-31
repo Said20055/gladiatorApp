@@ -1,38 +1,79 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:gladiatorapp/data/models/user_profile.dart';
 
 class AuthService {
   final _auth = FirebaseAuth.instance;
 
   // Регистрация с email/паролем
-  Future<User?> signUp(String email, String password) async {
+
+  Future<User?> signUp(String email, String password, String fullName) async {
     try {
+      // 1. Создаем пользователя в Firebase Auth
       final creds = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      await _sendEmailVerification(creds.user!);
-      return creds.user;
+
+      final user = creds.user;
+      if (user == null) return null;
+
+      // 2. Сохраняем профиль с использованием модели
+      final userProfile = UserProfile(
+        uid: user.uid,
+        fullName: fullName,
+        email: email,
+        photoUrl: null,
+        emailVerified: false,
+      );
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set(userProfile.toMap());
+
+      await _sendEmailVerification(user);
+      return user;
     } on FirebaseAuthException catch (e) {
       throw _parseAuthError(e.code);
+    } catch (e) {
+      throw Exception('Ошибка регистрации: $e');
     }
   }
 
   // Вход
-  Future<User?> signIn(String email, String password) async {
+  Future<SignInResult> signIn(String email, String password) async {
     try {
       final creds = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      if (!creds.user!.emailVerified) {
-        await _sendEmailVerification(creds.user!);
-        throw 'Подтвердите email (письмо отправлено)';
+      final user = creds.user!;
+
+      if (!user.emailVerified) {
+        await _sendEmailVerification(user);
+        return SignInResult(user: user, isVerified: false);
       }
-      return creds.user;
+
+      return SignInResult(user: user, isVerified: true);
     } on FirebaseAuthException catch (e) {
       throw _parseAuthError(e.code);
     }
   }
+
+//Выход
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+    } on FirebaseAuthException catch (e) {
+      throw _parseAuthError(e.code);
+    } catch (e) {
+      throw Exception('Не удалось выйти из аккаунта: $e');
+    }
+  }
+
+
+
 
   // Восстановление пароля
   Future<void> resetPassword(String email) async {
@@ -67,4 +108,10 @@ class AuthService {
         return 'Ошибка авторизации';
     }
   }
+}
+class SignInResult {
+  final User user;
+  final bool isVerified;
+
+  SignInResult({required this.user, required this.isVerified});
 }

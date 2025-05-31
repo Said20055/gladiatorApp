@@ -21,12 +21,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _auth.signIn(
+      final result = await _auth.signIn(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        if (result.isVerified) {
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Пожалуйста, подтвердите email. Письмо отправлено'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          await _auth.signOut(); // Разлогиниваем, если email не подтвержден
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -129,8 +129,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
               TextButton(
                 onPressed: () {
                   _auth.signOut();
-                  Navigator.popUntil(
-                      context, (route) => route.settings.name == '/login');
+                  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
                 },
                 child: const Text(
                   'Войти с другим email',
