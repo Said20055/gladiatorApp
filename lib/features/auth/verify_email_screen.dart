@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -13,34 +15,43 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   bool _isEmailVerified = false;
   bool _isLoading = true;
   bool _isResending = false;
+  Timer? _verificationTimer;
 
   @override
   void initState() {
     super.initState();
+    _startVerificationCheck();
+  }
+
+  @override
+  void dispose() {
+    _verificationTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startVerificationCheck() {
+    // Проверяем сразу при открытии
     _checkEmailVerification();
-    // Слушаем изменения статуса верификации
-    _auth.authStateChanges().listen((user) {
-      if (user != null) {
-        user.reload().then((_) {
-          if (mounted) {
-            setState(() {
-              _isEmailVerified = user.emailVerified;
-              _isLoading = false;
-            });
-          }
-        });
-      }
+
+    // Периодическая проверка каждые 3 секунды
+    _verificationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _checkEmailVerification();
     });
   }
 
   Future<void> _checkEmailVerification() async {
     final user = _auth.currentUser;
-    if (user != null) {
+    if (user != null && !_isEmailVerified) {
       await user.reload();
-      setState(() {
-        _isEmailVerified = user.emailVerified;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isEmailVerified = user.emailVerified;
+          _isLoading = false;
+        });
+
+        // Если email подтвержден, переходим на главный экран
+
+      }
     }
   }
 
@@ -51,7 +62,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       try {
         await user.sendEmailVerification();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Письмо отправлено повторно')),
+          const SnackBar(
+            content: Text('Письмо отправлено повторно'),
+            duration: Duration(seconds: 3),
+          ),
         );
       } finally {
         if (mounted) {
@@ -66,92 +80,80 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Подтверждение email'),
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
         padding: const EdgeInsets.all(20),
-        child: _isEmailVerified
-            ? _buildVerifiedContent()
-            : _buildNotVerifiedContent(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _isEmailVerified ? Icons.verified : Icons.email_outlined,
+              size: 80,
+              color: _isEmailVerified ? Colors.green : Colors.black,
+            ),
+            const SizedBox(height: 30),
+            Text(
+              _isEmailVerified
+                  ? 'Email подтверждён!'
+                  : 'Проверьте вашу почту',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 15),
+            Text(
+              _isEmailVerified
+                  ? 'Теперь вы можете пользоваться всеми функциями приложения'
+                  : 'Мы отправили письмо с ссылкой для подтверждения на ваш email',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 30),
+            if (!_isEmailVerified) ...[
+              ElevatedButton(
+                onPressed: _isResending ? null : _resendVerificationEmail,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, // Ваш цвет
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: _isResending
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Отправить повторно'),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  _auth.signOut();
+                  Navigator.popUntil(
+                      context, (route) => route.settings.name == '/login');
+                },
+                child: const Text(
+                  'Войти с другим email',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+            ],
+            if (_isEmailVerified)
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, // Ваш цвет
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: const Text('Продолжить'),
+              ),
+
+          ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildNotVerifiedContent() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(
-          Icons.email_outlined,
-          size: 80,
-          color: Colors.blueAccent,
-        ),
-        const SizedBox(height: 30),
-        const Text(
-          'Проверьте вашу почту',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 15),
-        const Text(
-          'Мы отправили письмо с ссылкой для подтверждения на ваш email',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16),
-        ),
-        const SizedBox(height: 30),
-        ElevatedButton(
-          onPressed: _isResending ? null : _resendVerificationEmail,
-          child: _isResending
-              ? const CircularProgressIndicator()
-              : const Text('Отправить повторно'),
-        ),
-        const SizedBox(height: 20),
-        TextButton(
-          onPressed: () {
-            _auth.signOut();
-            Navigator.popUntil(
-                context, (route) => route.settings.name == '/login');
-          },
-          child: const Text('Войти с другим email'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerifiedContent() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(
-          Icons.verified,
-          size: 80,
-          color: Colors.green,
-        ),
-        const SizedBox(height: 30),
-        const Text(
-          'Email подтверждён!',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 15),
-        const Text(
-          'Теперь вы можете пользоваться всеми функциями приложения',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16),
-        ),
-        const SizedBox(height: 30),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.pushReplacementNamed(context, '/home');
-          },
-          child: const Text('Продолжить'),
-        ),
-      ],
     );
   }
 }

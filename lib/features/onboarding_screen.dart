@@ -17,17 +17,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       'title': 'Отслеживайте прогресс',
       'subtitle': 'Следите за тренировками и наблюдайте реальные результаты со временем',
-      'image': 'assets/svg/logo.svg',
+      'image': 'assets/images/OnBoard1.png',
     },
     {
       'title': 'Персональные планы',
       'subtitle': 'Получайте индивидуальные планы тренировок на основе ваших целей',
-      'image': 'assets/svg/logo.svg',
+      'image': 'assets/images/OnBoard2.png',
     },
     {
       'title': 'Оставайтесь мотивированными',
-      'subtitle': 'Участвуйте в челленджах и соревнуйтесь с друзьями',
-      'image': 'assets/svg/logo.svg',
+      'subtitle': 'Тренируйтесь и станьте сильнее вместе с Gladiator!',
+      'image': 'assets/images/OnBoard3.png',
     },
 
   ];
