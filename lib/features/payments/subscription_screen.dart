@@ -1,8 +1,12 @@
-// lib/screens/subscription_screen.dart
+import 'dart:async';
+import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:gladiatorapp/data/models/tariff.dart'; // <-- путь к вашей модели
+import 'package:gladiatorapp/data/models/tariff.dart';
+import 'package:gladiatorapp/features/payments/payment_webview_screen.dart';
+import 'package:http/http.dart' as http;
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({Key? key}) : super(key: key);
@@ -13,8 +17,14 @@ class SubscriptionScreen extends StatefulWidget {
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Tariff? _selectedTariff;
+  late Future<List<Tariff>> _tariffsFuture;
 
-  /// Функция для загрузки всех тарифов из коллекции "tariffs"
+  @override
+  void initState() {
+    super.initState();
+    _tariffsFuture = _fetchTariffs(); // Сохраняем Future
+  }
+
   Future<List<Tariff>> _fetchTariffs() async {
     final querySnapshot =
     await FirebaseFirestore.instance.collection('tariffs').get();
@@ -25,7 +35,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      // AppBar с иконкой закрытия и заголовком
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -34,7 +43,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Subscription',
+          'Абонементы',
           style: TextStyle(
             color: Colors.black,
             fontSize: 20,
@@ -43,17 +52,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
         centerTitle: true,
       ),
-      // Body: FutureBuilder, который ждет список тарифов
       body: FutureBuilder<List<Tariff>>(
-        future: _fetchTariffs(),
+        future: _tariffsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // Пока идет загрузка — индикатор
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            // Если ошибка при загрузке — ошибка
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -65,7 +71,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ElevatedButton(
                     onPressed: () {
                       setState(() {
-                        // Попробовать загрузить еще раз
+                        _tariffsFuture = _fetchTariffs(); // повторная загрузка
                       });
                     },
                     child: const Text('Повторить'),
@@ -77,11 +83,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
           final List<Tariff> tariffs = snapshot.data ?? [];
           if (tariffs.isEmpty) {
-            // Если список тарифов пуст
             return const Center(child: Text('Тарифы не найдены'));
           }
 
-          // Когда тарифы загружены — рисуем экран
           return _buildSubscriptionContent(tariffs);
         },
       ),
@@ -92,13 +96,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     return Column(
       children: [
         const SizedBox(height: 24),
-        // Заголовок и подзаголовок
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: const [
               Text(
-                'Unlock premium features',
+                'Разблокировать функции и купить абонемент',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -108,7 +111,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
               SizedBox(height: 8),
               Text(
-                'Get доступ ко всем тренировкам, персональным планам и другим фишкам.',
+                'Получить доступ ко всем тренировкам, персональным планам и поход в зал.',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey,
@@ -119,11 +122,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        // Список тарифов в скролле
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            itemCount: tariffs.length + 1, // +1 для отступа снизу
+            itemCount: tariffs.length + 1,
             itemBuilder: (context, index) {
               if (index < tariffs.length) {
                 final tariff = tariffs[index];
@@ -134,13 +136,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ],
                 );
               } else {
-                // Просто пустой SizedBox для отступа снизу
                 return const SizedBox(height: 48);
               }
             },
           ),
         ),
-        // Кнопка Pay Now
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: SizedBox(
@@ -156,7 +156,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ),
               ),
               child: const Text(
-                'Pay Now',
+                'Купить сейчас',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -171,7 +171,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  /// Строим карточку для одного тарифа
   Widget _buildTariffCard(Tariff tariff) {
     final bool isSelected = _selectedTariff?.id == tariff.id;
 
@@ -197,7 +196,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Название тарифа и галочка, если выбран
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -218,7 +216,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              // Цена
               Text(
                 '${tariff.price} ₽',
                 style: TextStyle(
@@ -228,7 +225,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Список фич
               Column(
                 children: tariff.features
                     .map(
@@ -259,7 +255,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     .toList(),
               ),
               const SizedBox(height: 16),
-              // Кнопка Select / Selected
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -280,7 +275,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: Text(
-                    isSelected ? 'Selected' : 'Select',
+                    isSelected ? 'Выбрано' : 'Выбрать',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -292,23 +287,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ],
           ),
         ),
-
-        // Если тариф отмечен как isBest, показываем бейдж «Best Value»
         if (tariff.isBest)
           Positioned(
             top: 0,
             right: 0,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.red,
-                borderRadius: const BorderRadius.only(
+                borderRadius: BorderRadius.only(
                   topRight: Radius.circular(12),
                   bottomLeft: Radius.circular(12),
                 ),
               ),
               child: const Text(
-                'Best Value',
+                'Лучшее предложение',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 12,
@@ -321,39 +314,89 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  /// Обработчик нажатия «Pay Now»
-  void _onPayNowPressed() {
+  void _onPayNowPressed() async {
     if (_selectedTariff == null) return;
-
-    final String name = _selectedTariff!.title;
-    final int price = _selectedTariff!.price;
-
-    // Здесь можно запустить интеграцию с YooKassa,
-    // передав выбранный тариф (_selectedTariff).
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Подтверждение'),
-        content: Text(
-          'Вы выбрали тариф:\n'
-              '» $name — $price ₽\n\n'
-              'Перейти к оплате?',
-        ),
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://yoocassa.onrender.com/api/payment'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'value': _selectedTariff!.price,
+          'orderID': DateTime.now().millisecondsSinceEpoch.toString(),
+          'userUID': FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
+        }),
+      );
+
+      Navigator.of(context).pop();
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final confirmationUrl =
+        responseData['payment']?['confirmation']?['confirmation_url'];
+
+        if (confirmationUrl != null) {
+          _openPaymentWebView(confirmationUrl);
+        } else {
+          _showErrorDialog('Ошибка платежа', 'Не получен URL для оплаты');
+        }
+      } else {
+        _showErrorDialog(
+          'Ошибка ${response.statusCode}',
+          responseData['error'] ?? 'Неизвестная ошибка сервера',
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop();
+      _showErrorDialog('Ошибка', e.toString());
+    }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // TODO: здесь запускать SDK YooKassa или WebView оплаты
-            },
-            child: const Text('ОК'),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
           ),
         ],
       ),
     );
+  }
+
+  void _openPaymentWebView(String url) async {
+    final paymentSuccess = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PaymentWebViewScreen(paymentUrl: url),
+      ),
+    );
+
+    if (paymentSuccess == true) {
+      _updateSubscriptionStatus();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Оплата прошла успешно!')),
+      );
+    }
+  }
+
+  Future<void> _updateSubscriptionStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'hasPremium': true,
+        'subscriptionEnd': DateTime.now().add(const Duration(days: 30)),
+      });
+    }
   }
 }

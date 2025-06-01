@@ -42,7 +42,7 @@ class HomeScreen extends StatelessWidget {
                     width: cardWidth,
                     title: 'Morning Yoga',
                     subtitle: 'Start your day with a calming yoga session.',
-                    imageUrl: 'https://via.placeholder.com/150'
+                    imageUrl: 'https://avatars.mds.yandex.net/i?id=c12a2f2a27d4210e54faf40fdb936cefb7ed98f3-5235997-images-thumbs&n=13'
                 ),
                 _highlightCard(
                     context: context,
