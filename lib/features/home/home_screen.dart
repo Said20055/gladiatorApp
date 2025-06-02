@@ -112,14 +112,13 @@ class HomeScreen extends StatelessWidget {
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'Workouts'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Progress'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Community'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
+          BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'Тренировки'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Прогресс'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
         ],
         onTap: (index) {
-          if (index == 4) { // Предположим, что профиль третий в списке
+          if (index == 3) { // Предположим, что профиль третий в списке
             Navigator.pushNamed(context, '/profile');
           }
         },

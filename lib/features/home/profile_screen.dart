@@ -3,16 +3,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gladiatorapp/data/models/user_profile.dart';
 import 'package:gladiatorapp/core/services/auth_service.dart';
+import 'package:gladiatorapp/features/home/edit_profile_screen.dart'; // Импорт экрана редактирования
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
   String? get _currentUserId => FirebaseAuth.instance.currentUser?.uid;
 
-  Future<UserProfile?> _fetchUserProfile(BuildContext context) async {
+  Future<UserProfile?> _fetchUserProfile() async {
     final uid = _currentUserId;
     if (uid == null) {
-      _redirectToLogin(context);
+      _redirectToLogin();
       return null;
     }
 
@@ -26,8 +32,44 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  void _redirectToLogin(BuildContext context) {
+  void _redirectToLogin() {
     Navigator.of(context).pushReplacementNamed('/login');
+  }
+
+  Future<void> _editProfile() async {
+    final profile = await _fetchUserProfile();
+    if (profile == null) return;
+
+    final updatedProfile = await Navigator.push<UserProfile>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(initialProfile: profile),
+      ),
+    );
+
+    if (updatedProfile != null && mounted) {
+      setState(() {}); // Обновляем UI
+    }
+  }
+
+  void _changePassword(String? email) {
+    if (email == null) return;
+
+    AuthService().resetPassword(email);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Письмо с изменением пароля отправлено на почту')),
+    );
+  }
+
+  Future<void> _logOut() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
+  }
+
+  void _sub() {
+    Navigator.of(context).pushNamed('/subscription');
   }
 
   @override
@@ -45,24 +87,24 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
       body: FutureBuilder<UserProfile?>(
-        future: _fetchUserProfile(context),
+        future: _fetchUserProfile(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError || snapshot.data == null) {
-            return _buildErrorState(context);
+            return _buildErrorState();
           }
 
           final profile = snapshot.data!;
-          return _buildProfileContent(profile, context);
+          return _buildProfileContent(profile);
         },
       ),
     );
   }
 
-  Widget _buildErrorState(BuildContext context) {
+  Widget _buildErrorState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -74,11 +116,10 @@ class ProfileScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               if (_currentUserId != null) {
-                _fetchUserProfile(context);
+                setState(() {}); // Перезагружаем данные
               } else {
-                _redirectToLogin(context);
+                _redirectToLogin();
               }
-              FirebaseAuth.instance.signOut();
             },
             child: const Text('Повторить попытку'),
           ),
@@ -87,7 +128,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileContent(UserProfile profile, BuildContext context) {
+  Widget _buildProfileContent(UserProfile profile) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
@@ -116,31 +157,27 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           _buildProfileOption(
-            context,
             title: 'Редактировать профиль',
-            onTap: () => _editProfile(context),
+            onTap: _editProfile,
           ),
           _buildProfileOption(
-            context,
             title: 'Изменить пароль',
-            onTap: () => _changePassword(context, profile.email),
+            onTap: () => _changePassword(profile.email),
           ),
           _buildProfileOption(
-            context,
-            title: 'Выйти из аккаунта',
-            onTap: () => _logOut(context),
-          ),
-          _buildProfileOption(
-            context,
             title: 'Абонементы',
-            onTap: () => _sub(context),
+            onTap: _sub,
+          ),
+          _buildProfileOption(
+            title: 'Выйти из аккаунта',
+            onTap: _logOut,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileOption(BuildContext context, {required String title, required VoidCallback onTap}) {
+  Widget _buildProfileOption({required String title, required VoidCallback onTap}) {
     return Column(
       children: [
         ListTile(
@@ -152,24 +189,5 @@ class ProfileScreen extends StatelessWidget {
         const Divider(height: 1),
       ],
     );
-  }
-
-  void _editProfile(BuildContext context) {
-    Navigator.pushNamed(context, '/edit-profile');
-  }
-
-  void _changePassword(BuildContext context, String? email) {
-    AuthService().resetPassword(email!);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Письмо с изменением пароля отравлено на почту')),
-    );
-  }
-
-  void _logOut(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.of(context).pushReplacementNamed('/login');
-  }
-  void _sub(BuildContext context) async {
-    Navigator.of(context).pushNamed('/subscription');
   }
 }
