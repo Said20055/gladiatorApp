@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:gladiatorapp/data/models/tariff.dart';
+import 'package:gladiatorapp/data/models/user_profile.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,6 +13,13 @@ class SubscriptionService {
     final snapshot = await FirebaseFirestore.instance.collection('tariffs').get();
     return snapshot.docs.map((doc) => Tariff.fromFirestore(doc)).toList();
   }
+
+  static Future<UserProfile> fetchUserProfile() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return UserProfile.fromFirestore(doc);
+  }
+
 
   static Future<Map<String, dynamic>> createPayment(Tariff tariff) async {
     final userId = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
@@ -24,6 +32,7 @@ class SubscriptionService {
         'value': tariff.price,
         'orderID': DateTime.now().millisecondsSinceEpoch.toString(),
         'userUID': userId,
+        'tariffId': tariff.id,
         'return_url': returnUrl,
       }),
     );

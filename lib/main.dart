@@ -10,7 +10,7 @@ import 'package:gladiatorapp/features/home/home_screen.dart';
 import 'package:gladiatorapp/core/routes.dart';
 
 void main() async {
-  await dotenv.load(fileName: 'assets/.env');
+  //await dotenv.load(fileName: 'assets/.env');
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 

@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gladiatorapp/data/models/user_profile.dart';
 import 'package:gladiatorapp/core/services/auth_service.dart';
-import 'package:gladiatorapp/features/home/edit_profile_screen.dart'; // Импорт экрана редактирования
+import 'package:gladiatorapp/features/home/edit_profile_screen.dart';
+import 'package:gladiatorapp/features/payments/subscription_screen.dart'; // Импорт экрана редактирования
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -106,7 +107,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 
   void _sub() {
-    Navigator.of(context).pushNamed('/subscription');
+    if (_cachedProfile != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SubscriptionScreen(userProfile: _cachedProfile!),
+        ),
+      );
+    }
   }
 
   @override

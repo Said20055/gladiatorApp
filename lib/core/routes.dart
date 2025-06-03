@@ -16,7 +16,6 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/verify-email': (context) => const VerifyEmailScreen(),
   '/forgot-password': (context) => const ForgotPasswordScreen(),
   '/profile': (context) => const ProfileScreen(),
-  '/subscription': (context) => const SubscriptionScreen(),
   '/edit-profile': (context) {
     final profile = ModalRoute.of(context)?.settings.arguments as UserProfile?;
     if (profile == null) {
