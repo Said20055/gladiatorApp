@@ -24,7 +24,6 @@ class AuthService {
         fullName: fullName,
         email: email,
         photoUrl: null,
-        emailVerified: false,
       );
 
       await FirebaseFirestore.instance

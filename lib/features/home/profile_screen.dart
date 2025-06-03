@@ -14,21 +14,34 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? get _currentUserId => FirebaseAuth.instance.currentUser?.uid;
+  UserProfile? _cachedProfile; // Кешируем данные профиля
+  bool _isLoading = false;
 
-  Future<UserProfile?> _fetchUserProfile() async {
+  Future<void> _fetchUserProfile() async {
+    if (_cachedProfile != null) return; // Если данные уже есть, не запрашиваем снова
+
+    setState(() => _isLoading = true);
     final uid = _currentUserId;
     if (uid == null) {
       _redirectToLogin();
-      return null;
+      return;
     }
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (!doc.exists) return null;
-      return UserProfile.fromFirestore(doc);
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (doc.exists) {
+        _cachedProfile = UserProfile.fromFirestore(doc);
+      }
     } catch (e) {
       debugPrint('Ошибка загрузки профиля: $e');
-      return null;
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -37,20 +50,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _editProfile() async {
-    final profile = await _fetchUserProfile();
-    if (profile == null) return;
+    if (_cachedProfile == null) return;
 
     final updatedProfile = await Navigator.push<UserProfile>(
       context,
       MaterialPageRoute(
-        builder: (_) => EditProfileScreen(initialProfile: profile),
+        builder: (_) => EditProfileScreen(initialProfile: _cachedProfile!),
       ),
     );
 
     if (updatedProfile != null && mounted) {
-      setState(() {}); // Обновляем UI
+      setState(() {
+        _cachedProfile = updatedProfile; // Обновляем кеш
+      });
     }
   }
+
+
 
   void _changePassword(String? email) {
     if (email == null) return;
@@ -62,15 +78,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logOut() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/login');
+    final shouldLogOut = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Подтвердите выход'),
+        content: const Text('Вы точно хотите выйти из аккаунта?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Выйти', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogOut == true) {
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
     }
   }
+
 
   void _sub() {
     Navigator.of(context).pushNamed('/subscription');
   }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserProfile(); // Загружаем данные при инициализации
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -86,21 +132,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: FutureBuilder<UserProfile?>(
-        future: _fetchUserProfile(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError || snapshot.data == null) {
-            return _buildErrorState();
-          }
-
-          final profile = snapshot.data!;
-          return _buildProfileContent(profile);
-        },
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _cachedProfile == null
+          ? _buildErrorState()
+          : _buildProfileContent(_cachedProfile!),
     );
   }
 
@@ -129,31 +165,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileContent(UserProfile profile) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundImage: profile.photoUrl != null
-                ? NetworkImage(profile.photoUrl!)
-                : null,
-            child: profile.photoUrl == null
-                ? const Icon(Icons.person, size: 50)
-                : null,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            profile.fullName,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+          Center(
+            child: CircleAvatar(
+              radius: 50,
+              backgroundImage: profile.photoUrl != null
+                  ? NetworkImage(profile.photoUrl!)
+                  : null,
+              child: profile.photoUrl == null
+                  ? const Icon(Icons.person, size: 50)
+                  : null,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Абонемент активен',
-            style: TextStyle(color: Colors.grey),
+          const SizedBox(height: 16),
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  profile.fullName!,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Абонемент активен',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 32),
           _buildProfileOption(
@@ -168,14 +213,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Абонементы',
             onTap: _sub,
           ),
-          _buildProfileOption(
-            title: 'Выйти из аккаунта',
-            onTap: _logOut,
+          const SizedBox(height: 320),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _logOut,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Выйти из аккаунта',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
+
 
   Widget _buildProfileOption({required String title, required VoidCallback onTap}) {
     return Column(

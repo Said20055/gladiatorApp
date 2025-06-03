@@ -1,13 +1,14 @@
-// lib/data/models/tariff.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Tariff {
   final String id;
   final String title;
-  final int price;           // Цена в рублях, например 3000 или 3500
+  final int price;                  // Цена в рублях
   final List<String> features;
-  final bool isBest;         // Флаг для отметки «Best Value» (при необходимости)
+  final bool isBest;
+
+  final String duration;           // Новый параметр: период действия (например, "1 месяц")
+  final int sessionCount;          // Новый параметр: кол-во тренировок (например, 12)
 
   Tariff({
     required this.id,
@@ -15,6 +16,8 @@ class Tariff {
     required this.price,
     required this.features,
     this.isBest = false,
+    required this.duration,
+    required this.sessionCount,
   });
 
   /// Создает объект Tariff из документа Firestore
@@ -22,10 +25,13 @@ class Tariff {
     final data = doc.data() as Map<String, dynamic>;
     return Tariff(
       id: doc.id,
-      title: data['title'] as String?        ?? '',
-      price: data['price'] as int?            ?? 0,
+      title: data['title'] as String? ?? '',
+      price: data['price'] as int? ?? 0,
       features: List<String>.from(data['features'] as List<dynamic>? ?? []),
-      isBest: data['isBest'] as bool?         ?? false,
+      isBest: data['isBest'] as bool? ?? false,
+      duration: data['duration'] as String? ?? '1 месяц',
+      sessionCount: data['sessionCount'] as int? ?? 0,
+
     );
   }
 
@@ -36,6 +42,8 @@ class Tariff {
       'price': price,
       'features': features,
       'isBest': isBest,
+      'duration': duration,
+      'sessionCount': sessionCount,
     };
   }
 }

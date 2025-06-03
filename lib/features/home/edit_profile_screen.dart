@@ -18,7 +18,6 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
-  late final TextEditingController _emailController;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   File? _selectedImage;
@@ -27,13 +26,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialProfile.fullName);
-    _emailController = TextEditingController(text: widget.initialProfile.email);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
@@ -62,21 +59,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         }
       }
 
-      final newEmail = _emailController.text.trim();
-      final oldEmail = widget.initialProfile.email;
-
-      if (newEmail != oldEmail) {
-        final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-        if (!emailRegex.hasMatch(newEmail)) {
-          throw Exception('Некорректный формат email');
-        }
-
-        await FirebaseAuth.instance.currentUser?.updateEmail(newEmail);
-      }
-
       final updatedProfile = widget.initialProfile.copyWith(
         fullName: _nameController.text.trim(),
-        email: newEmail,
         photoUrl: uploadedUrl ?? widget.initialProfile.photoUrl,
       );
 
@@ -87,14 +71,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Профиль успешно обновлен')),
+          const SnackBar(
+            content: Text('Профиль успешно обновлен'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context, updatedProfile);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: ${e.toString()}')),
+          SnackBar(
+            content: Text('Ошибка: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -105,43 +95,107 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // белый фон
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white, // убрать розовый цвет
+        backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        elevation: 1,
-        title: const Text('Редактировать профиль'),
+        elevation: 0,
+        title: const Text(
+          'Редактировать профиль',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true, // ✅ это было внутри title – ошибка
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 32),
               GestureDetector(
                 onTap: _pickImage,
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage: _selectedImage != null
-                      ? FileImage(_selectedImage!)
-                      : widget.initialProfile.photoUrl != null
-                      ? NetworkImage(widget.initialProfile.photoUrl!) as ImageProvider
-                      : null,
-                  child: (_selectedImage == null && widget.initialProfile.photoUrl == null)
-                      ? const Icon(Icons.person, size: 50)
-                      : null,
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.grey.shade200,
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: _selectedImage != null
+                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              : widget.initialProfile.photoUrl != null
+                              ? Image.network(
+                            widget.initialProfile.photoUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.person, size: 40),
+                          )
+                              : const Icon(Icons.person, size: 40),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
+              Text(
+                'Нажмите для смены фото',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 32),
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Полное имя',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'Имя и фамилия',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                 ),
+                style: const TextStyle(fontSize: 16),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Введите имя';
@@ -149,37 +203,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Введите email';
-                  }
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                    return 'Введите корректный email';
-                  }
-                  return null;
-                },
-              ),
               const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.email_outlined, color: Colors.grey),
+                    const SizedBox(width: 12),
+                    Text(
+                      widget.initialProfile.email!,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red, // красная кнопка
+                    backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0, // ✅ Было внутри shape – ошибка
                   ),
                   onPressed: _saveProfile,
-                  child: const Text('Сохранить изменения'),
+                  child: const Text(
+                    'Сохранить изменения',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),

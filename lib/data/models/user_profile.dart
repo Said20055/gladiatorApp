@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserProfile {
   final String uid;
-  final String fullName;
+  final String? fullName;
   final String? email;
   final String? photoUrl;
   final DateTime? createdAt;
-  final bool emailVerified;
+
+  final String? activeTariffId; // Новый ID тарифа
+  final DateTime? subscriptionStartDate; // Дата начала действия абонемента
 
   UserProfile({
     required this.uid,
@@ -14,7 +16,8 @@ class UserProfile {
     this.email,
     this.photoUrl,
     this.createdAt,
-    this.emailVerified = false,
+    this.activeTariffId,
+    this.subscriptionStartDate,
   });
 
   factory UserProfile.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -27,7 +30,8 @@ class UserProfile {
       email: _parseString(data['email']),
       photoUrl: _parseString(data['photoUrl']),
       createdAt: _parseTimestamp(data['createdAt']),
-      emailVerified: data['emailVerified'] as bool? ?? false,
+      activeTariffId: _parseString(data['activeTariffId']),
+      subscriptionStartDate: _parseTimestamp(data['subscriptionStartDate']),
     );
   }
 
@@ -39,12 +43,14 @@ class UserProfile {
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
-      'emailVerified': emailVerified,
+      if (activeTariffId != null) 'activeTariffId': activeTariffId,
+      if (subscriptionStartDate != null)
+        'subscriptionStartDate': Timestamp.fromDate(subscriptionStartDate!),
     };
   }
 
-  // Вспомогательные методы для безопасного парсинга
-  static String _parseString(dynamic value, {String fallback = ''}) {
+  // Вспомогательные методы
+  static String? _parseString(dynamic value, {String? fallback}) {
     return value is String ? value : fallback;
   }
 
@@ -57,7 +63,8 @@ class UserProfile {
     String? email,
     String? photoUrl,
     DateTime? createdAt,
-    bool? emailVerified,
+    String? activeTariffId,
+    DateTime? subscriptionStartDate,
   }) {
     return UserProfile(
       uid: uid,
@@ -65,12 +72,13 @@ class UserProfile {
       email: email ?? this.email,
       photoUrl: photoUrl ?? this.photoUrl,
       createdAt: createdAt ?? this.createdAt,
-      emailVerified: emailVerified ?? this.emailVerified,
+      activeTariffId: activeTariffId ?? this.activeTariffId,
+      subscriptionStartDate: subscriptionStartDate ?? this.subscriptionStartDate,
     );
   }
 
   @override
   String toString() {
-    return 'UserProfile($uid, $fullName, $email)';
+    return 'UserProfile($uid, $fullName, $email, $activeTariffId)';
   }
 }

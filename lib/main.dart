@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gladiatorapp/features/onboarding_screen.dart';
@@ -9,6 +10,7 @@ import 'package:gladiatorapp/features/home/home_screen.dart';
 import 'package:gladiatorapp/core/routes.dart';
 
 void main() async {
+  await dotenv.load(fileName: 'assets/.env');
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
