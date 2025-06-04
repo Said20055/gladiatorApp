@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:app_links/app_links.dart';
 import 'package:gladiatorapp/data/models/tariff.dart';
 import 'package:gladiatorapp/data/models/user_profile.dart';
 import 'package:gladiatorapp/core/services/subscription_service.dart';
@@ -22,9 +21,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
   Tariff? _selectedTariff;
   late Future<List<Tariff>> _tariffsFuture;
   SubscriptionState _state = SubscriptionState.loading;
-  StreamSubscription<Uri?>? _deepLinkSub;
-  final _appLinks = AppLinks();
   Timer? _paymentStatusTimer;
+  bool _isProcessingPayment = false;
 
   @override
   void initState() {
@@ -34,62 +32,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
   }
 
   Future<void> _initScreen() async {
-    await _checkInitialSubscription();
-    _initDeepLinks();
+    await _checkSubscriptionStatus();
+    _loadTariffs();
   }
 
-  Future<void> _checkInitialSubscription() async {
-    try {
-      if (_hasActiveSubscription(widget.userProfile)) {
-        setState(() => _state = SubscriptionState.active);
-      } else {
-        _tariffsFuture = SubscriptionService.fetchTariffs();
-        setState(() => _state = SubscriptionState.inactive);
-      }
-    } catch (e) {
-      setState(() => _state = SubscriptionState.error);
-    }
-  }
-
-  void _initDeepLinks() {
-    _deepLinkSub?.cancel();
-    _deepLinkSub = _appLinks.uriLinkStream.listen(_handleIncomingUri, onError: (err) {
-      debugPrint('Deep link error: $err');
-    });
-
-    _checkInitialDeepLink();
-  }
-
-  Future<void> _checkInitialDeepLink() async {
-    try {
-      final initialUri = await _appLinks.getInitialLink();
-      if (initialUri != null) {
-        await _handleIncomingUri(initialUri);
-      }
-    } catch (err) {
-      debugPrint('Initial deep link error: $err');
-    }
-  }
-
-  Future<void> _handleIncomingUri(Uri? uri) async {
-    if (uri == null || !mounted) return;
-
-    debugPrint('Received deep link: $uri');
-    if (uri.scheme == 'gladiatorapp' && uri.host == 'payment') {
-      final success = uri.queryParameters['success'];
-      final cancelled = uri.queryParameters['cancelled'];
-
-      if (success == 'true') {
-        await _processSuccessfulPayment();
-      } else if (cancelled == 'true') {
-        _showPaymentCancelledDialog();
-      } else {
-        _showErrorDialog('Ошибка', 'Неизвестный статус платежа');
-      }
-    }
-  }
-
-  Future<void> _processSuccessfulPayment() async {
+  Future<void> _checkSubscriptionStatus() async {
     try {
       setState(() => _state = SubscriptionState.loading);
       final freshProfile = await SubscriptionService.fetchUserProfile();
@@ -98,47 +45,56 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
       if (_hasActiveSubscription(freshProfile)) {
         setState(() => _state = SubscriptionState.active);
-        _showPaymentSuccessDialog();
-        Navigator.of(context).pop(true);
       } else {
         setState(() => _state = SubscriptionState.inactive);
-        _showErrorDialog('Ошибка', 'Подписка не активирована');
       }
     } catch (e) {
       if (mounted) {
         setState(() => _state = SubscriptionState.error);
-        _showErrorDialog('Ошибка', 'Не удалось проверить статус подписки');
       }
+    }
+  }
+
+  Future<void> _loadTariffs() async {
+    _tariffsFuture = SubscriptionService.fetchTariffs();
+    if (_state == SubscriptionState.inactive && mounted) {
+      setState(() {});
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _paymentStatusTimer?.cancel();
-      Future.delayed(const Duration(seconds: 1), _verifyPaymentStatus);
+    if (state == AppLifecycleState.resumed && _isProcessingPayment) {
+      _verifyPaymentStatus();
     }
   }
 
   Future<void> _verifyPaymentStatus() async {
     if (!mounted || _state == SubscriptionState.active) return;
 
+    setState(() => _isProcessingPayment = true);
+
     try {
-      setState(() => _state = SubscriptionState.loading);
+      await Future.delayed(const Duration(seconds: 2)); // Даем время на обработку платежа
       final freshProfile = await SubscriptionService.fetchUserProfile();
 
       if (!mounted) return;
 
       if (_hasActiveSubscription(freshProfile)) {
-        setState(() => _state = SubscriptionState.active);
+        setState(() {
+          _state = SubscriptionState.active;
+          _isProcessingPayment = false;
+        });
         _showPaymentSuccessDialog();
         Navigator.of(context).pop(true);
       } else {
-        setState(() => _state = SubscriptionState.inactive);
+        setState(() => _isProcessingPayment = false);
+        _showPaymentNotCompletedDialog();
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _state = SubscriptionState.error);
+        setState(() => _isProcessingPayment = false);
+        _showErrorDialog('Ошибка', 'Не удалось проверить статус платежа');
       }
     }
   }
@@ -149,6 +105,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
   Future<void> _onPayNowPressed() async {
     if (_selectedTariff == null || !mounted) return;
+
+    setState(() => _isProcessingPayment = true);
 
     showDialog(
       context: context,
@@ -168,40 +126,66 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
       final launched = await SubscriptionService.launchPayment(confirmationUrl);
       if (!launched && mounted) {
+        setState(() => _isProcessingPayment = false);
         _showErrorDialog('Ошибка', 'Не удалось открыть страницу оплаты');
         return;
       }
 
-      _startPaymentStatusTimer();
+      // Запускаем периодическую проверку статуса
+      _startPaymentStatusChecker();
+
     } catch (e) {
       if (mounted) {
+        setState(() => _isProcessingPayment = false);
         Navigator.of(context).pop();
         _showErrorDialog('Ошибка платежа', e.toString());
       }
     }
   }
 
-  void _startPaymentStatusTimer() {
-    _paymentStatusTimer?.cancel();
-    _paymentStatusTimer = Timer(const Duration(minutes: 2), () async {
-      if (!mounted || _state == SubscriptionState.active) return;
+  void _startPaymentStatusChecker() {
+    const interval = Duration(seconds: 5);
+    const maxAttempts = 12; // 1 минута проверок
+    int attempts = 0;
 
-      _showErrorDialog(
-          'Внимание',
-          'Платёж не завершён. Проверьте историю платежей или попробуйте ещё раз'
-      );
+    Timer.periodic(interval, (timer) async {
+      if (!mounted || _state == SubscriptionState.active || attempts >= maxAttempts) {
+        timer.cancel();
+        if (attempts >= maxAttempts && mounted && !_hasActiveSubscription(widget.userProfile)) {
+          setState(() => _isProcessingPayment = false);
+          _showPaymentNotCompletedDialog();
+        }
+        return;
+      }
+
+      attempts++;
+      try {
+        final freshProfile = await SubscriptionService.fetchUserProfile();
+        if (_hasActiveSubscription(freshProfile)) {
+          timer.cancel();
+          if (mounted) {
+            setState(() {
+              _state = SubscriptionState.active;
+              _isProcessingPayment = false;
+            });
+            _showPaymentSuccessDialog();
+            Navigator.of(context).pop(true);
+          }
+        }
+      } catch (e) {
+        debugPrint('Ошибка проверки статуса: $e');
+      }
     });
   }
 
   @override
   void dispose() {
     _paymentStatusTimer?.cancel();
-    _deepLinkSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  // Регионы UI построения
+  // Регионы UI построения (остаются без изменений, как в предыдущем коде)
   Widget _buildLoadingView() {
     return Scaffold(
       appBar: AppBar(title: const Text('Абонементы')),
@@ -466,12 +450,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     );
   }
 
-  void _showPaymentCancelledDialog() {
+  void _showPaymentNotCompletedDialog() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Отменено'),
-        content: const Text('Платёж был отменён.'),
+        title: const Text('Платёж не завершён'),
+        content: const Text('Проверьте историю платежей или попробуйте ещё раз.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

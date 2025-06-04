@@ -5,9 +5,10 @@ import 'package:gladiatorapp/features/auth/registration_screen.dart';
 import 'package:gladiatorapp/features/auth/verify_email_screen.dart';
 import 'package:gladiatorapp/features/auth/forgot_pw_screen.dart';
 import 'package:gladiatorapp/features/home/home_screen.dart';
-import 'package:gladiatorapp/features/home/profile_screen.dart';
-import 'package:gladiatorapp/features/payments/subscription_screen.dart';
-import 'package:gladiatorapp/features/home/edit_profile_screen.dart';
+import 'package:gladiatorapp/features/home/progress_screen.dart';
+import 'package:gladiatorapp/features/home/settings_screen.dart';
+import 'package:gladiatorapp/features/home/profile/profile_screen.dart';
+import 'package:gladiatorapp/features/home/profile//edit_profile_screen.dart';
 
 final Map<String, WidgetBuilder> appRoutes = {
   '/login': (context) => const LoginScreen(),
@@ -16,6 +17,8 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/verify-email': (context) => const VerifyEmailScreen(),
   '/forgot-password': (context) => const ForgotPasswordScreen(),
   '/profile': (context) => const ProfileScreen(),
+  '/progress': (context) => const ProgressScreen(),
+  '/settings': (context) => const SettingsScreen(),
   '/edit-profile': (context) {
     final profile = ModalRoute.of(context)?.settings.arguments as UserProfile?;
     if (profile == null) {
