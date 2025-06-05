@@ -58,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _onNavBarTap(int index) {
+   Future<void>  _onNavBarTap(int index) async {
     switch (index) {
       case 0:
       // Главная — ничего не делаем, мы уже тут
@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         } else {
-          _fetchSubscriptionStatus();
+          await _fetchSubscriptionStatus();
           Navigator.push(
             context,
             MaterialPageRoute(

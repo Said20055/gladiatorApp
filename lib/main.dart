@@ -78,7 +78,7 @@ class _MyAppState extends State<MyApp> {
           }
 
           // Пользователь не авторизован - показываем onboarding или login
-          return !_isFirstLaunch
+          return _isFirstLaunch
               ? const OnboardingScreen()
               : const LoginScreen();
         },

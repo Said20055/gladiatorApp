@@ -1,0 +1,2 @@
+C:/Users/rsas9/StudioProjects/GladiatorApp/android/app/.cxx/RelWithDebInfo/6q2dup6j/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/rsas9/StudioProjects/GladiatorApp/android/app/.cxx/RelWithDebInfo/6q2dup6j/arm64-v8a/CMakeFiles/rebuild_cache.dir

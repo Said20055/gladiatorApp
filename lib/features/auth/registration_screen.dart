@@ -181,7 +181,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
                   )
                       : const Text(
-                    'Зарегестрироваться',
+                    'Зарегистрироваться',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

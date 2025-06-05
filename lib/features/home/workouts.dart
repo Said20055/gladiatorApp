@@ -65,7 +65,7 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
     _workouts = _generateWorkouts();
   }
 
-  /// Генерация тестовых данных тренировок
+
   List<Workout> _generateWorkouts() {
     return [
       Workout(
