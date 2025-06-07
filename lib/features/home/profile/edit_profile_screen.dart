@@ -22,6 +22,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = false;
   File? _selectedImage;
 
+  // Фиксированные цвета для акцентов
+  final Color primaryColor = const Color(0xFFE53935); // Красный
+  final Color successColor = const Color(0xFF4CAF50); // Зеленый
+
   @override
   void initState() {
     super.initState();
@@ -71,9 +75,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Профиль успешно обновлен'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Профиль успешно обновлен'),
+            backgroundColor: successColor, // Зеленый для успеха
           ),
         );
         Navigator.pop(context, updatedProfile);
@@ -83,7 +87,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Ошибка: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: primaryColor, // Красный для ошибок
           ),
         );
       }
@@ -95,23 +99,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Редактировать профиль',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).textTheme.titleLarge?.color,
+          ),
         ),
-        centerTitle: true, // ✅ это было внутри title – ошибка
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).iconTheme.color,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+        child: CircularProgressIndicator(
+          color: primaryColor, // Красный индикатор загрузки
+        ),
+      )
           : SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Form(
@@ -131,7 +144,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.grey.shade200,
+                            color: Theme.of(context).dividerColor,
                             width: 2,
                           ),
                         ),
@@ -142,16 +155,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ? Image.network(
                             widget.initialProfile.photoUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.person, size: 40),
+                            errorBuilder: (_, __, ___) => Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Theme.of(context).iconTheme.color,
+                            ),
                           )
-                              : const Icon(Icons.person, size: 40),
+                              : Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Theme.of(context).iconTheme.color,
+                          ),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
+                        decoration: BoxDecoration(
+                          color: primaryColor, // Красная кнопка камеры
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -168,7 +188,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Text(
                 'Нажмите для смены фото',
                 style: TextStyle(
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
                   fontSize: 12,
                 ),
               ),
@@ -177,25 +197,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 controller: _nameController,
                 decoration: InputDecoration(
                   labelText: 'Имя и фамилия',
-                  labelStyle: const TextStyle(color: Colors.grey),
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.red),
+                    borderSide: BorderSide(
+                      color: primaryColor, // Красная рамка при фокусе
+                    ),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
                   ),
                 ),
-                style: const TextStyle(fontSize: 16),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Введите имя';
@@ -210,18 +241,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor,
+                  ),
                   borderRadius: BorderRadius.circular(12),
+                  color: Theme.of(context).cardColor,
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.email_outlined, color: Colors.grey),
+                    Icon(
+                      Icons.email_outlined,
+                      color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       widget.initialProfile.email!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                   ],
@@ -233,12 +270,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: primaryColor, // Красная кнопка
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 0, // ✅ Было внутри shape – ошибка
+                    elevation: 0,
                   ),
                   onPressed: _saveProfile,
                   child: const Text(

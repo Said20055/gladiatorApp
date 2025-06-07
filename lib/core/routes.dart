@@ -9,9 +9,12 @@ import 'package:gladiatorapp/features/home/progress_screen.dart';
 import 'package:gladiatorapp/features/home/settings_screen.dart';
 import 'package:gladiatorapp/features/home/profile/profile_screen.dart';
 import 'package:gladiatorapp/features/home/profile//edit_profile_screen.dart';
+import 'package:gladiatorapp/features/payments/subscription_screen.dart';
+import '../features/admin/admin_dashboard_screen.dart';
 
 final Map<String, WidgetBuilder> appRoutes = {
   '/login': (context) => const LoginScreen(),
+  '/admin-dashboard': (context) => AdminDashboardScreen(),
   '/home': (context) => const HomeScreen(),
   '/register': (context) => const RegistrationScreen(),
   '/verify-email': (context) => const VerifyEmailScreen(),
@@ -19,6 +22,8 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/profile': (context) => const ProfileScreen(),
   '/progress': (context) => const ProgressScreen(),
   '/settings': (context) => const SettingsScreen(),
+  '/subscription': (context) => const SubscriptionScreen(),
+
   '/edit-profile': (context) {
     final profile = ModalRoute.of(context)?.settings.arguments as UserProfile?;
     if (profile == null) {

@@ -1,5 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,98 +12,79 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
   String _selectedLanguage = 'Русский';
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Настройки',
           style: TextStyle(
-            color: Colors.black,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: Theme.of(context).iconTheme.color),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Профиль
-            _buildSectionHeader('Профиль'),
+            _buildSectionHeader(context, 'Профиль'),
             _buildListTile(
+              context,
               icon: Icons.person_outline,
               title: 'Мой профиль',
-              onTap: () => _navigateToProfile(),
+              onTap: () => _navigateToProfile(context),
             ),
 
             const SizedBox(height: 24),
 
-            // Приложение
-            _buildSectionHeader('Приложение'),
+            _buildSectionHeader(context, 'Приложение'),
             _buildSwitchTile(
-              icon: Icons.notifications_outlined,
-              title: 'Уведомления',
-              value: _notificationsEnabled,
-              onChanged: (val) => setState(() => _notificationsEnabled = val),
-            ),
-            _buildSwitchTile(
+              context,
               icon: Icons.dark_mode_outlined,
               title: 'Темная тема',
-              value: _darkModeEnabled,
-              onChanged: (val) => setState(() => _darkModeEnabled = val),
-            ),
-            _buildDropdownTile(
-              icon: Icons.language_outlined,
-              title: 'Язык',
-              value: _selectedLanguage,
-              items: const ['Русский', 'English', 'Español'],
-              onChanged: (val) => setState(() => _selectedLanguage = val!),
+              value: themeProvider.isDarkMode,
+              onChanged: (val) => themeProvider.toggleTheme(val),
             ),
             const SizedBox(height: 24),
 
-            // О приложении
-            _buildSectionHeader('О приложении'),
+            _buildSectionHeader(context, 'О приложении'),
             _buildListTile(
+              context,
               icon: Icons.info_outline,
               title: 'О нас',
-              onTap: () => _showAboutDialog(),
+              onTap: () => _showAboutDialog(context),
             ),
             _buildListTile(
+              context,
               icon: Icons.star_outline,
               title: 'Оцените приложение',
               onTap: () => _rateApp(),
             ),
-            _buildListTile(
-              icon: Icons.share_outlined,
-              title: 'Поделиться приложением',
-              onTap: () => _shareApp(),
-            ),
             const SizedBox(height: 24),
-
-            // Выход
-
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 8, bottom: 8),
       child: Text(
         title,
         style: TextStyle(
-          color: Colors.grey[600],
+          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -109,25 +92,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildListTile({
-    required IconData icon,
-    required String title,
-    String? trailingText,
-    VoidCallback? onTap,
-  }) {
+  Widget _buildListTile(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        String? trailingText,
+        VoidCallback? onTap,
+      }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
       elevation: 0,
-      color: Colors.grey[50],
+      color: Theme.of(context).cardColor,
       child: ListTile(
-        leading: Icon(icon, color: Colors.black),
+        leading: Icon(icon, color: Theme.of(context).iconTheme.color),
         title: Text(
           title,
-          style: const TextStyle(
-            color: Colors.black,
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyLarge?.color,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -135,35 +119,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? Text(
           trailingText,
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
             fontSize: 14,
           ),
         )
-            : const Icon(Icons.chevron_right, color: Colors.grey),
+            : Icon(Icons.chevron_right, color: Theme.of(context).iconTheme.color),
         onTap: onTap,
       ),
     );
   }
 
-  Widget _buildSwitchTile({
-    required IconData icon,
-    required String title,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
+  Widget _buildSwitchTile(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required bool value,
+        required ValueChanged<bool> onChanged,
+      }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
       elevation: 0,
-      color: Colors.grey[50],
+      color: Theme.of(context).cardColor,
       child: ListTile(
-        leading: Icon(icon, color: Colors.black),
+        leading: Icon(icon, color: Theme.of(context).iconTheme.color),
         title: Text(
           title,
-          style: const TextStyle(
-            color: Colors.black,
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyLarge?.color,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -177,51 +162,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildDropdownTile({
-    required IconData icon,
-    required String title,
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 0,
-      color: Colors.grey[50],
-      child: ListTile(
-        leading: Icon(icon, color: Colors.black),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        trailing: DropdownButton<String>(
-          value: value,
-          underline: const SizedBox(),
-          borderRadius: BorderRadius.circular(12),
-          items: items.map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
-            );
-          }).toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  void _navigateToProfile() {
+  void _navigateToProfile(BuildContext context) {
     Navigator.pushNamed(context, '/profile');
   }
 
-
-  void _showAboutDialog() {
+  void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -249,12 +194,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _rateApp() {
-    // Открыть магазин приложений для оценки
+    // Реализация оценки приложения
   }
-
-  void _shareApp() {
-    // Поделиться ссылкой на приложение
-  }
-
-
 }

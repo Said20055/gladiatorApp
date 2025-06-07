@@ -16,6 +16,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   bool _isLoading = true;
   bool _isResending = false;
   Timer? _verificationTimer;
+  final Color _primaryColor = const Color(0xFFE53935); // Красный акцент
 
   @override
   void initState() {
@@ -30,10 +31,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   }
 
   void _startVerificationCheck() {
-    // Проверяем сразу при открытии
     _checkEmailVerification();
-
-    // Периодическая проверка каждые 3 секунды
     _verificationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       _checkEmailVerification();
     });
@@ -48,9 +46,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           _isEmailVerified = user.emailVerified;
           _isLoading = false;
         });
-
-        // Если email подтвержден, переходим на главный экран
-
       }
     }
   }
@@ -61,12 +56,18 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       setState(() => _isResending = true);
       try {
         await user.sendEmailVerification();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Письмо отправлено повторно'),
-            duration: Duration(seconds: 3),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Письмо отправлено повторно'),
+              backgroundColor: Theme.of(context).snackBarTheme.backgroundColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
       } finally {
         if (mounted) {
           setState(() => _isResending = false);
@@ -77,13 +78,22 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Подтверждение email'),
-        foregroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        foregroundColor: theme.appBarTheme.foregroundColor,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+        child: CircularProgressIndicator(
+          color: _primaryColor,
+        ),
+      )
           : Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -92,16 +102,19 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             Icon(
               _isEmailVerified ? Icons.verified : Icons.email_outlined,
               size: 80,
-              color: _isEmailVerified ? Colors.green : Colors.black,
+              color: _isEmailVerified
+                  ? Colors.green
+                  : theme.textTheme.titleLarge?.color,
             ),
             const SizedBox(height: 30),
             Text(
               _isEmailVerified
                   ? 'Email подтверждён!'
                   : 'Проверьте вашу почту',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
+                color: theme.textTheme.titleLarge?.color,
               ),
             ),
             const SizedBox(height: 15),
@@ -110,16 +123,23 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   ? 'Теперь вы можете пользоваться всеми функциями приложения'
                   : 'Мы отправили письмо с ссылкой для подтверждения на ваш email',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(
+                fontSize: 16,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
             ),
             const SizedBox(height: 30),
             if (!_isEmailVerified) ...[
               ElevatedButton(
                 onPressed: _isResending ? null : _resendVerificationEmail,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red, // Ваш цвет
+                  backgroundColor: _primaryColor,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
                 ),
                 child: _isResending
                     ? const CircularProgressIndicator(color: Colors.white)
@@ -129,27 +149,33 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
               TextButton(
                 onPressed: () {
                   _auth.signOut();
-                  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/login', (route) => false);
                 },
-                child: const Text(
+                child: Text(
                   'Войти с другим email',
-                  style: TextStyle(color: Colors.black),
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                  ),
                 ),
               ),
             ],
             if (_isEmailVerified)
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/home', (route) => false);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red, // Ваш цвет
+                  backgroundColor: _primaryColor,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text('Продолжить'),
               ),
-
           ],
         ),
       ),

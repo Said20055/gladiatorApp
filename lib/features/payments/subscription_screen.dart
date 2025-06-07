@@ -1,28 +1,36 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:gladiatorapp/data/models/tariff.dart';
 import 'package:gladiatorapp/data/models/user_profile.dart';
+import 'package:gladiatorapp/data/models/subscription.dart';
 import 'package:gladiatorapp/core/services/subscription_service.dart';
+import 'package:logger/logger.dart';
 
 enum SubscriptionState { loading, active, inactive, error }
 
 class SubscriptionScreen extends StatefulWidget {
-  final UserProfile userProfile;
 
-  const SubscriptionScreen({Key? key, required this.userProfile})
-      : super(key: key);
+
+  const SubscriptionScreen({Key? key}) : super(key: key);
 
   @override
   _SubscriptionScreenState createState() => _SubscriptionScreenState();
 }
 
-class _SubscriptionScreenState extends State<SubscriptionScreen>
-    with WidgetsBindingObserver {
+class _SubscriptionScreenState extends State<SubscriptionScreen> with WidgetsBindingObserver {
   Tariff? _selectedTariff;
+  final Logger _logger = Logger();
   late Future<List<Tariff>> _tariffsFuture;
   SubscriptionState _state = SubscriptionState.loading;
   Timer? _paymentStatusTimer;
   bool _isProcessingPayment = false;
+
+  // Цвета остаются постоянными в обеих темах
+  final Color primaryColor = const Color(0xFFE53935); // Красный
+  final Color successColor = const Color(0xFF4CAF50); // Зеленый
+  final Color cardSelectedBorderColor = const Color(0xFFE53935); // Красный
+  final Color cardUnselectedBorderColor = Colors.grey;
 
   @override
   void initState() {
@@ -39,11 +47,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
   Future<void> _checkSubscriptionStatus() async {
     try {
       setState(() => _state = SubscriptionState.loading);
-      final freshProfile = await SubscriptionService.fetchUserProfile();
+      final subscription = await SubscriptionService.fetchSubscription();
 
       if (!mounted) return;
 
-      if (_hasActiveSubscription(freshProfile)) {
+      if (_hasActiveSubscription(subscription)) {
         setState(() => _state = SubscriptionState.active);
       } else {
         setState(() => _state = SubscriptionState.inactive);
@@ -75,12 +83,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     setState(() => _isProcessingPayment = true);
 
     try {
-      await Future.delayed(const Duration(seconds: 2)); // Даем время на обработку платежа
-      final freshProfile = await SubscriptionService.fetchUserProfile();
+      await Future.delayed(const Duration(seconds: 2));
+      final subscription = await SubscriptionService.fetchSubscription();
 
       if (!mounted) return;
 
-      if (_hasActiveSubscription(freshProfile)) {
+      if (_hasActiveSubscription(subscription)) {
         setState(() {
           _state = SubscriptionState.active;
           _isProcessingPayment = false;
@@ -99,8 +107,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     }
   }
 
-  bool _hasActiveSubscription(UserProfile profile) {
-    return profile.activeTariffId != null;
+  bool _hasActiveSubscription(Subscription? subscription) {
+    return subscription?.isValid ?? false;
   }
 
   Future<void> _onPayNowPressed() async {
@@ -113,7 +121,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       barrierDismissible: false,
       builder: (_) => WillPopScope(
         onWillPop: () async => false,
-        child: const Center(child: CircularProgressIndicator()),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
       ),
     );
 
@@ -131,9 +143,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
         return;
       }
 
-      // Запускаем периодическую проверку статуса
       _startPaymentStatusChecker();
-
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessingPayment = false);
@@ -145,23 +155,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
   void _startPaymentStatusChecker() {
     const interval = Duration(seconds: 5);
-    const maxAttempts = 12; // 1 минута проверок
+    const maxAttempts = 12;
     int attempts = 0;
 
     Timer.periodic(interval, (timer) async {
       if (!mounted || _state == SubscriptionState.active || attempts >= maxAttempts) {
         timer.cancel();
-        if (attempts >= maxAttempts && mounted && !_hasActiveSubscription(widget.userProfile)) {
-          setState(() => _isProcessingPayment = false);
-          _showPaymentNotCompletedDialog();
+        if (attempts >= maxAttempts && mounted) {
+          final subscription = await SubscriptionService.fetchSubscription();
+          if (!_hasActiveSubscription(subscription)) {
+            setState(() => _isProcessingPayment = false);
+            _showPaymentNotCompletedDialog();
+          }
         }
         return;
       }
 
       attempts++;
       try {
-        final freshProfile = await SubscriptionService.fetchUserProfile();
-        if (_hasActiveSubscription(freshProfile)) {
+        final subscription = await SubscriptionService.fetchSubscription();
+        if (_hasActiveSubscription(subscription)) {
           timer.cancel();
           if (mounted) {
             setState(() {
@@ -185,36 +198,53 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     super.dispose();
   }
 
-  // Регионы UI построения (остаются без изменений, как в предыдущем коде)
   Widget _buildLoadingView() {
     return Scaffold(
-      appBar: AppBar(title: const Text('Абонементы')),
-      body: const Center(child: CircularProgressIndicator()),
+      appBar: AppBar(title: Text('Абонементы')),
+      body: Center(
+        child: CircularProgressIndicator(
+          color: Theme.of(context).primaryColor,
+        ),
+      ),
     );
   }
 
   Widget _buildActiveSubscriptionView() {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Абонементы'),
-        backgroundColor: Colors.white,
+        title: Text('Абонементы'),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.check_circle, size: 60, color: Colors.green),
+            Icon(
+              Icons.check_circle,
+              size: 60,
+              color: primaryColor, // Красная галочка
+            ),
             const SizedBox(height: 20),
             Text(
-              'У вас активный абонемент,\n${widget.userProfile.fullName ?? "пользователь"}!',
+              'У вас активный абонемент!',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Вернуться'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor, // Красная кнопка
+              ),
+              child: const Text(
+                'Вернуться',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -224,21 +254,34 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
   Widget _buildErrorView() {
     return Scaffold(
-      appBar: AppBar(title: const Text('Абонементы')),
+      appBar: AppBar(title: Text('Абонементы')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 60, color: Colors.red),
+            Icon(
+              Icons.error_outline,
+              size: 60,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Ошибка загрузки данных',
-              style: TextStyle(fontSize: 18),
+              style: TextStyle(
+                fontSize: 18,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _initScreen,
-              child: const Text('Повторить'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor, // Красная кнопка
+              ),
+              child: const Text(
+                'Повторить',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -248,17 +291,23 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
   Widget _buildTariffsView() {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
+          icon: Icon(
+            Icons.close,
+            color: Theme.of(context).iconTheme.color,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Абонементы',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Theme.of(context).textTheme.titleLarge?.color,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         centerTitle: true,
       ),
@@ -266,16 +315,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
         future: _tariffsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
+            );
           }
-
           if (snapshot.hasError) {
             return _buildErrorView();
           }
 
           final tariffs = snapshot.data ?? [];
           if (tariffs.isEmpty) {
-            return const Center(child: Text('Нет доступных тарифов'));
+            return Center(
+              child: Text(
+                'Нет доступных тарифов',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+              ),
+            );
           }
 
           return _buildTariffsListView(tariffs);
@@ -293,13 +352,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
           child: Column(
             children: [
               Text(
-                'Здравствуйте, ${widget.userProfile.fullName ?? "пользователь"}!',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                'Здравствуйте!',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Выберите подходящий абонемент',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.titleLarge?.color,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -320,15 +387,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _selectedTariff == null ? null : _onPayNowPressed,
+              onPressed: _onPayNowPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                disabledBackgroundColor: Colors.red.shade200,
+                backgroundColor: primaryColor, // Красная кнопка
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Купить сейчас',
                 style: TextStyle(
                   fontSize: 16,
@@ -345,15 +411,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
   Widget _buildTariffCard(Tariff tariff) {
     final isSelected = _selectedTariff?.id == tariff.id;
+    final theme = Theme.of(context);
+
     return GestureDetector(
       onTap: () => setState(() => _selectedTariff = tariff),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? Colors.red : Colors.grey.shade300,
+            color: isSelected ? cardSelectedBorderColor : cardUnselectedBorderColor,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: [
@@ -376,11 +444,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: isSelected ? Colors.red : Colors.black,
+                    color: isSelected ? primaryColor : theme.textTheme.bodyLarge?.color,
                   ),
                 ),
                 if (isSelected)
-                  const Icon(Icons.check_circle, color: Colors.red),
+                  Icon(
+                    Icons.check_circle,
+                    color: primaryColor, // Красная галочка
+                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -389,41 +460,52 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.red : Colors.black,
+                color: isSelected ? primaryColor : theme.textTheme.bodyLarge?.color,
               ),
             ),
             const SizedBox(height: 16),
-            ...tariff.features.map((feature) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.check, size: 20, color: Colors.green),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      feature,
-                      style: const TextStyle(fontSize: 14, color: Colors.black54),
+            ...tariff.features.map(
+                  (feature) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.check,
+                      size: 20,
+                      color: successColor, // Зеленая галочка
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        feature,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () => setState(() => _selectedTariff = tariff),
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: isSelected ? Colors.red.shade50 : Colors.grey.shade100,
+                  backgroundColor: isSelected
+                      ? primaryColor.withOpacity(0.1)
+                      : theme.colorScheme.surfaceVariant,
                   side: BorderSide(
-                    color: isSelected ? Colors.red : Colors.grey.shade400,
+                    color: isSelected ? primaryColor : theme.dividerColor,
                   ),
                 ),
                 child: Text(
                   isSelected ? 'Выбрано' : 'Выбрать',
                   style: TextStyle(
-                    color: isSelected ? Colors.red : Colors.black87,
+                    color: isSelected ? primaryColor : theme.textTheme.bodyMedium?.color,
                   ),
                 ),
               ),
@@ -438,12 +520,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Успешно!'),
-        content: const Text('Ваш абонемент активирован.'),
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        title: Text(
+          'Успешно!',
+          style: TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
+        ),
+        content: Text(
+          'Ваш абонемент активирован.',
+          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text('OK'),
           ),
         ],
       ),
@@ -454,12 +543,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Платёж не завершён'),
-        content: const Text('Проверьте историю платежей или попробуйте ещё раз.'),
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        title: Text(
+          'Платёж не завершён',
+          style: TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
+        ),
+        content: Text(
+          'Проверьте историю платежей или попробуйте ещё раз.',
+          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text('OK'),
           ),
         ],
       ),
@@ -470,12 +566,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        title: Text(
+          title,
+          style: TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text('OK'),
           ),
         ],
       ),

@@ -4,6 +4,7 @@ import 'package:gladiatorapp/data/models/user_profile.dart';
 
 class AuthService {
   final _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Регистрация с email/паролем
 
@@ -72,7 +73,13 @@ class AuthService {
   }
 
 
+  Future<bool> isAdminUser() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
 
+    final doc = await _firestore.collection('admins').doc(user.uid).get();
+    return doc.exists;
+  }
 
   // Восстановление пароля
   Future<void> resetPassword(String email) async {

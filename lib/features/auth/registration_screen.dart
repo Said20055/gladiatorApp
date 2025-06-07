@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:gladiatorapp/core/services/auth_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  final Color _primaryColor = const Color(0xFFE53935); // Красный акцент
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
@@ -28,7 +30,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
         _nameController.text.trim(),
-
       );
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/verify-email');
@@ -36,7 +37,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     } finally {
@@ -46,10 +50,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Регистрация'),
+        title: Text(
+          'Регистрация',
+          style: TextStyle(color: theme.textTheme.titleLarge?.color),
+        ),
         centerTitle: true,
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        elevation: 0,
+        iconTheme: IconThemeData(color: theme.iconTheme.color),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -58,16 +72,47 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           child: Column(
             children: [
               const SizedBox(height: 40),
+              // Логотип или заголовок
+              SvgPicture.asset(
+                'assets/svg/logo.svg', // Убедитесь, что файл лежит в этой папке
+                height: 80,
+                colorFilter: isDarkMode ? ColorFilter.mode(Colors.white, BlendMode.srcIn) : null,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Создайте новый аккаунт',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: theme.textTheme.titleLarge?.color,
+                ),
+              ),
+              const SizedBox(height: 32),
+
               // Поле для имени
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
                   labelText: 'Полное имя',
+                  labelStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
                   ),
-                  prefixIcon: const Icon(Icons.person),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[50],
+                  prefixIcon: Icon(Icons.person, color: theme.iconTheme.color),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                 ),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Пожалуйста, введите свое полное имя';
@@ -76,16 +121,31 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 },
               ),
               const SizedBox(height: 20),
+
               // Поле для email
               TextFormField(
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Email адрес',
+                  labelStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
                   ),
-                  prefixIcon: const Icon(Icons.email),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[50],
+                  prefixIcon: Icon(Icons.email, color: theme.iconTheme.color),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                 ),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -98,24 +158,40 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 },
               ),
               const SizedBox(height: 20),
+
               // Поле для пароля
               TextFormField(
                 controller: _passwordController,
                 decoration: InputDecoration(
                   labelText: 'Пароль',
+                  labelStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
                   ),
-                  prefixIcon: const Icon(Icons.lock),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[50],
+                  prefixIcon: Icon(Icons.lock, color: theme.iconTheme.color),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                      color: theme.iconTheme.color,
                     ),
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
                     },
                   ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                 ),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 obscureText: _obscurePassword,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -128,24 +204,40 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 },
               ),
               const SizedBox(height: 20),
+
               // Поле для подтверждения пароля
               TextFormField(
                 controller: _confirmPasswordController,
                 decoration: InputDecoration(
                   labelText: 'Подтвердите пароль',
+                  labelStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
                   ),
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[50],
+                  prefixIcon: Icon(Icons.lock_outline, color: theme.iconTheme.color),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                      color: theme.iconTheme.color,
                     ),
                     onPressed: () {
                       setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
                     },
                   ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                 ),
+                style: TextStyle(color: theme.textTheme.bodyLarge?.color),
                 obscureText: _obscureConfirmPassword,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -158,18 +250,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 },
               ),
               const SizedBox(height: 40),
+
               // Кнопка регистрации
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _signUp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: _primaryColor,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 0,
                   ),
                   child: _isLoading
                       ? const SizedBox(
@@ -190,21 +284,22 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+
               // Ссылка на вход
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                 },
-                child: const Text.rich(
+                child: Text.rich(
                   TextSpan(
-                    text: 'У вас уже аккаунт? ',
-                    style: TextStyle(color: Colors.grey),
+                    text: 'У вас уже есть аккаунт? ',
+                    style: TextStyle(color: theme.textTheme.bodySmall?.color),
                     children: [
                       TextSpan(
                         text: 'Войти',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: _primaryColor,
                         ),
                       ),
                     ],

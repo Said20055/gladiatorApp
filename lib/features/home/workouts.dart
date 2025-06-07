@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -58,13 +60,14 @@ class WorkoutsScreen extends StatefulWidget {
 class _WorkoutsScreenState extends State<WorkoutsScreen> {
   final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
   late List<Workout> _workouts;
+  final Color _primaryColor = const Color(0xFFE53935); // Красный акцент
+  final Color _darkColor = const Color(0xFF121212); // Темный фон
 
   @override
   void initState() {
     super.initState();
     _workouts = _generateWorkouts();
   }
-
 
   List<Workout> _generateWorkouts() {
     return [
@@ -99,7 +102,6 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
           Exercise(name: 'Выпады на месте', sets: 3, reps: 12, rest: 60),
         ],
       ),
-
       Workout(
         id: '6',
         title: 'Растяжка всего тела',
@@ -160,7 +162,6 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
           Exercise(name: 'Скалолаз', sets: 5, reps: 20, rest: 30),
         ],
       ),
-
       Workout(
         id: '7',
         title: 'Премиум: Функциональная тренировка',
@@ -181,30 +182,36 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkMode ? _darkColor : Colors.white,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Мои тренировки',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode ? _darkColor : Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
       ),
       body: Column(
         children: [
-          // Если у пользователя нет подписки — показываем баннер
           if (!widget.hasActiveSubscription) _buildSubscriptionBanner(),
-          // Список карточек тренировок
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _workouts.length,
               itemBuilder: (context, index) {
                 final workout = _workouts[index];
-                return _buildWorkoutCard(workout);
+                return _buildWorkoutCard(workout, isDarkMode, theme); // Добавлен theme
               },
             ),
           ),
@@ -213,62 +220,59 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
     );
   }
 
-  /// Баннер-приглашение купить подписку
   Widget _buildSubscriptionBanner() {
     return Container(
       padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: _primaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _primaryColor),
       ),
       child: Row(
         children: [
-          const Icon(Icons.lock, color: Colors.red),
-          const SizedBox(width: 10),
+          Icon(Icons.lock, color: _primaryColor),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Премиум доступ',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: _primaryColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Чтобы получить полный доступ ко всем тренировкам, купите абонемент',
+                  'Откройте все тренировки с подпиской',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                    color: _primaryColor.withOpacity(0.8),
                     fontSize: 14,
                   ),
                 ),
               ],
             ),
           ),
-
+          IconButton(
+            icon: Icon(Icons.arrow_forward, color: _primaryColor),
+            onPressed: () => Navigator.pushNamed(context, '/subscription'),
+          ),
         ],
       ),
     );
   }
 
-  /// Карточка одной тренировки в списке
-  Widget _buildWorkoutCard(Workout workout) {
+  Widget _buildWorkoutCard(Workout workout, bool isDarkMode, ThemeData theme) { // Добавлен theme
     final isLocked = workout.isPremium && !widget.hasActiveSubscription;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        color: isDarkMode ? Colors.grey[900] : Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -278,63 +282,140 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
         ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onTap: isLocked
-            ? () => _showSubscribeDialog()
-            : () => _openWorkoutDetails(workout),
+            ? () => _showSubscribeDialog(theme) // Добавлен theme
+            : () => _openWorkoutDetails(workout, theme), // Добавлен theme
         child: Stack(
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Изображение тренировки
-                ClipRRect(
-                  borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
-                  child: CachedNetworkImage(
-                    imageUrl: workout.imageUrl,
-                    width: double.infinity,
-                    height: 180,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey[200],
-                      height: 180,
-                      child:
-                      const Center(child: CircularProgressIndicator()),
+                // Изображение с градиентом
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: CachedNetworkImage(
+                        imageUrl: workout.imageUrl,
+                        width: double.infinity,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[200],
+                          height: 180,
+                          child: Center(
+                            child: CircularProgressIndicator(color: _primaryColor),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[200],
+                          height: 180,
+                          child: Icon(Icons.fitness_center, size: 50, color: _primaryColor),
+                        ),
+                      ),
                     ),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[200],
-                      height: 180,
-                      child: const Icon(Icons.fitness_center,
-                          size: 50, color: Colors.black),
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.7),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    Positioned(
+                      bottom: 16,
+                      left: 16,
+                      right: 16,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            workout.title,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.timer, size: 16, color: Colors.white70),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${workout.duration} мин',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getDifficultyColor(workout.difficulty),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  workout.difficulty,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Заголовок и метка PREMIUM
+                      Text(
+                        workout.description,
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.grey[800],
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: _primaryColor),
+                            ),
                             child: Text(
-                              workout.title,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                              '${workout.exercises.length} упражнений',
+                              style: TextStyle(
+                                color: _primaryColor,
                               ),
                             ),
                           ),
+                          const Spacer(),
                           if (workout.isPremium)
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(12),
+                                color: _primaryColor,
+                                borderRadius: BorderRadius.circular(20),
                               ),
                               child: const Text(
                                 'PREMIUM',
@@ -347,99 +428,25 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      // Дата и длительность
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_today,
-                              size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text(
-                            _dateFormat.format(workout.date),
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Icon(Icons.timer,
-                              size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${workout.duration} мин',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Описание
-                      Text(
-                        workout.description,
-                        style: TextStyle(
-                          color: Colors.grey[800],
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Чипы: сложность и количество упражнений
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _getDifficultyColor(workout.difficulty),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              workout.difficulty,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${workout.exercises.length} упражнений',
-                              style: const TextStyle(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 ),
               ],
             ),
-
-            // Если тренировка премиум и подписка не активна — накрываем затемнённым слоем
             if (isLocked)
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     color: Colors.black.withOpacity(0.7),
                   ),
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.lock, size: 40, color: Colors.white),
+                        Icon(Icons.lock, size: 40, color: Colors.white),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Премиум контент',
                           style: TextStyle(
                             color: Colors.white,
@@ -447,7 +454,6 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
@@ -459,7 +465,6 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
     );
   }
 
-  /// Цвет фона для чипа сложности
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
       case 'легкая':
@@ -473,26 +478,30 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
     }
   }
 
-  /// Показать диалог с предложением оформить подписку
-  void _showSubscribeDialog() {
+  void _showSubscribeDialog(ThemeData theme) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        title: const Text(
+        title: Text(
           'Премиум тренировка',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: theme.textTheme.titleLarge?.color,
+          ),
         ),
-        content: const Text(
-            'Эта тренировка доступна только для пользователей с активной подпиской'),
+        content: Text(
+          'Эта тренировка доступна только для пользователей с активной подпиской',
+          style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'Позже',
-              style: TextStyle(color: Colors.black),
+              style: TextStyle(color: theme.textTheme.bodyLarge?.color),
             ),
           ),
           ElevatedButton(
@@ -501,14 +510,14 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
               Navigator.pushNamed(context, '/subscription');
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: theme.colorScheme.errorContainer,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Купить подписку',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: theme.colorScheme.onErrorContainer),
             ),
           ),
         ],
@@ -516,8 +525,7 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
     );
   }
 
-  /// Открыть детали тренировки
-  void _openWorkoutDetails(Workout workout) {
+  void _openWorkoutDetails(Workout workout, ThemeData theme) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -527,92 +535,320 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
   }
 }
 
-/// Экран с деталями конкретной тренировки
-class WorkoutDetailsScreen extends StatelessWidget {
+class WorkoutDetailsScreen extends StatefulWidget {
   final Workout workout;
 
-  const WorkoutDetailsScreen({Key? key, required this.workout})
-      : super(key: key);
+  const WorkoutDetailsScreen({Key? key, required this.workout}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
+  _WorkoutDetailsScreenState createState() => _WorkoutDetailsScreenState();
+}
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+class _WorkoutDetailsScreenState extends State<WorkoutDetailsScreen> {
+  final Color _primaryColor = const Color(0xFFE53935);
+  bool _isWorkoutStarted = false;
+  int _currentExerciseIndex = 0;
+  int _currentSet = 1;
+  int _secondsRemaining = 0;
+  bool _isResting = false;
+  late Timer _timer;
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  void _startWorkout() {
+    setState(() {
+      _isWorkoutStarted = true;
+      _currentExerciseIndex = 0;
+      _currentSet = 1;
+      _startExercise();
+    });
+  }
+
+  void _startExercise() {
+    final exercise = widget.workout.exercises[_currentExerciseIndex];
+    setState(() {
+      _isResting = false;
+      _secondsRemaining = exercise.reps * 2; // 2 секунды на повтор
+    });
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (_secondsRemaining > 0) {
+          _secondsRemaining--;
+        } else {
+          if (_isResting) {
+            _nextSetOrExercise();
+          } else {
+            _startRestPeriod();
+          }
+        }
+      });
+    });
+  }
+
+  void _startRestPeriod() {
+    final exercise = widget.workout.exercises[_currentExerciseIndex];
+    setState(() {
+      _isResting = true;
+      _secondsRemaining = exercise.rest;
+    });
+  }
+
+  void _nextSetOrExercise() {
+    final exercise = widget.workout.exercises[_currentExerciseIndex];
+
+    if (_currentSet < exercise.sets) {
+      setState(() {
+        _currentSet++;
+        _startExercise();
+      });
+    } else if (_currentExerciseIndex < widget.workout.exercises.length - 1) {
+      setState(() {
+        _currentExerciseIndex++;
+        _currentSet = 1;
+        _startExercise();
+      });
+    } else {
+      _timer.cancel();
+      setState(() {
+        _isWorkoutStarted = false;
+      });
+      _showWorkoutCompleteDialog();
+    }
+  }
+
+  void _showWorkoutCompleteDialog() {
+    final theme = Theme.of(context); // Получаем тему здесь
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         title: Text(
-          workout.title,
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          'Тренировка завершена!',
+          style: TextStyle(color: theme.textTheme.titleLarge?.color),
         ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Изображение тренировки
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage(
-                imageUrl: workout.imageUrl,
-                width: double.infinity,
-                height: 220,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[200],
-                  height: 220,
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[200],
-                  height: 220,
-                  child:
-                  const Icon(Icons.fitness_center, size: 50, color: Colors.black),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Описание
-            Text(
-              workout.description,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[800],
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Секция упражнений
-            const Text(
-              'Упражнения',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            ...workout.exercises.map((exercise) => _buildExerciseCard(exercise)).toList(),
-          ],
+        content: Text(
+          'Вы успешно завершили тренировку "${widget.workout.title}"',
+          style: TextStyle(color: theme.textTheme.bodyMedium?.color),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Карточка одного упражнения в деталях тренировки
-  Widget _buildExerciseCard(Exercise exercise) {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      appBar: AppBar(
+        title: Text(
+          widget.workout.title,
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
+      ),
+      body: _isWorkoutStarted ? _buildWorkoutInProgress() : _buildWorkoutDetails(isDarkMode),
+      floatingActionButton: !_isWorkoutStarted
+          ? FloatingActionButton.extended(
+        onPressed: _startWorkout,
+        backgroundColor: _primaryColor,
+        label: const Text('Начать тренировку', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.play_arrow, color: Colors.white),
+      )
+          : null,
+    );
+  }
+
+  Widget _buildWorkoutInProgress() {
+    final exercise = widget.workout.exercises[_currentExerciseIndex];
+    final totalExercises = widget.workout.exercises.length;
+    final progress = (_currentExerciseIndex / totalExercises).clamp(0.0, 1.0);
+
+    return Column(
+      children: [
+        LinearProgressIndicator(
+          value: progress,
+          backgroundColor: Colors.grey[300],
+          color: _primaryColor,
+          minHeight: 4,
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Упражнение ${_currentExerciseIndex + 1}/$totalExercises',
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                exercise.name,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildWorkoutStat('Подход', '$_currentSet/${exercise.sets}'),
+                  _buildWorkoutStat(
+                    _isResting ? 'Отдых' : 'Повторения',
+                    _isResting
+                        ? '${_secondsRemaining} сек'
+                        : '${(_secondsRemaining / 2).ceil()}/${exercise.reps}',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: Text(
+                  _isResting
+                      ? 'Отдых'
+                      : '${(_secondsRemaining / 2).ceil()} ${_getRepWord((_secondsRemaining / 2).ceil())}',
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (_isResting)
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _timer.cancel();
+                      _nextSetOrExercise();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Пропустить отдых',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getRepWord(int count) {
+    if (count % 10 == 1 && count % 100 != 11) return 'повторение';
+    if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) {
+      return 'повторения';
+    }
+    return 'повторений';
+  }
+
+  Widget _buildWorkoutStat(String title, String value) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWorkoutDetails(bool isDarkMode) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: CachedNetworkImage(
+              imageUrl: widget.workout.imageUrl,
+              width: double.infinity,
+              height: 220,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                color: Colors.grey[200],
+                height: 220,
+                child: Center(child: CircularProgressIndicator(color: _primaryColor)),
+              ),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.grey[200],
+                height: 220,
+                child: Icon(Icons.fitness_center, size: 50, color: _primaryColor),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            widget.workout.description,
+            style: TextStyle(
+              fontSize: 16,
+              color: isDarkMode ? Colors.white70 : Colors.grey[800],
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Упражнения',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...widget.workout.exercises.map((exercise) => _buildExerciseCard(exercise, isDarkMode)).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExerciseCard(Exercise exercise, bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDarkMode ? Colors.grey[900] : Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -632,16 +868,15 @@ class WorkoutDetailsScreen extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
               ),
             ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildExerciseStat('Подходы', '${exercise.sets}'),
-                _buildExerciseStat('Повторения', '${exercise.reps}'),
-                _buildExerciseStat('Отдых', '${exercise.rest} сек'),
+                _buildExerciseStat('Подходы', '${exercise.sets}', isDarkMode),
+                _buildExerciseStat('Повторения', '${exercise.reps}', isDarkMode),
+                _buildExerciseStat('Отдых', '${exercise.rest} сек', isDarkMode),
               ],
             ),
           ],
@@ -650,24 +885,23 @@ class WorkoutDetailsScreen extends StatelessWidget {
     );
   }
 
-  /// Виджет для одной статистики упражнения
-  Widget _buildExerciseStat(String title, String value) {
+  Widget _buildExerciseStat(String title, String value, bool isDarkMode) {
     return Column(
       children: [
         Text(
           title,
           style: TextStyle(
-            color: Colors.grey[600],
+            color: isDarkMode ? Colors.white70 : Colors.grey[600],
             fontSize: 14,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
           ),
         ),
       ],

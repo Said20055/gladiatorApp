@@ -6,12 +6,58 @@ import 'package:flutter/cupertino.dart';
 import 'package:gladiatorapp/data/models/tariff.dart';
 import 'package:gladiatorapp/data/models/user_profile.dart';
 import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/models/subscription.dart';
+
 class SubscriptionService {
+  static final String BASE_URL = 'https://yoocassa.onrender.com';
+  static final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0, // Не показывать количество методов в логе
+      errorMethodCount: 5, // Количество методов при ошибке
+      lineLength: 50,
+      colors: true,
+      printEmojis: true,
+      printTime: true,
+    ),
+  );
+
   static Future<List<Tariff>> fetchTariffs() async {
-    final snapshot = await FirebaseFirestore.instance.collection('tariffs').get();
-    return snapshot.docs.map((doc) => Tariff.fromFirestore(doc)).toList();
+    try {
+      _logger.i('🔄 Начало загрузки тарифов из Firestore');
+
+      final snapshot = await FirebaseFirestore.instance.collection('tariffs').get();
+      _logger.i('📊 Получено ${snapshot.docs.length} тарифов');
+
+      if (snapshot.docs.isEmpty) {
+        _logger.w('⚠️ Коллекция tariffs пуста');
+        return [];
+      }
+
+      final tariffs = <Tariff>[];
+      for (final doc in snapshot.docs) {
+        try {
+          _logger.d('🔍 Обработка документа ${doc.id}');
+          final tariff = Tariff.fromFirestore(doc);
+          tariffs.add(tariff);
+          _logger.v('✅ Успешно создан тариф: ${tariff.title}');
+        } catch (e, stackTrace) {
+          _logger.e('❌ Ошибка при создании тарифа из документа ${doc.id}',
+              error: e,
+              stackTrace: stackTrace);
+        }
+      }
+
+      _logger.i('🎉 Загружено ${tariffs.length} тарифов');
+      return tariffs;
+    } catch (e, stackTrace) {
+      _logger.e('💥 Критическая ошибка при загрузке тарифов',
+          error: e,
+          stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   static Future<UserProfile> fetchUserProfile() async {
@@ -26,7 +72,7 @@ class SubscriptionService {
     final returnUrl = 'gladiatorapp://payment/return?user=$userId&success={success}';
 
     final response = await http.post(
-      Uri.parse('https://yoocassa.onrender.com/api/payment'),
+      Uri.parse('$BASE_URL/api/payment'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'value': tariff.price,
@@ -104,13 +150,52 @@ class SubscriptionService {
     }
   }
 
-  static Future<void> updateSubscriptionStatus() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'hasPremium': true,
-        'subscriptionEnd': DateTime.now().add(const Duration(days: 30)),
-      });
+  static Future<Subscription?> fetchSubscription() async {
+    try {
+      final profile = await SubscriptionService.fetchUserProfile();
+      final subscriptionDoc = await FirebaseFirestore.instance
+          .collection('subscriptions')
+          .doc(profile.activeSubscriptionId)
+          .get();
+
+      if (!subscriptionDoc.exists) {
+        return null;
+      }
+
+      // Конвертируем в модель Subscription
+      final subscription = Subscription.fromFirestore(subscriptionDoc);
+
+      // Проверяем, активна ли подписка
+      return subscription;
+    } catch (e) {
+      debugPrint('Ошибка получения подписки: $e');
+      return null;
     }
   }
+
+
+  static Future<Map<String, dynamic>> generateQrCode(String userId) async {
+    final response = await http.post(
+      Uri.parse('$BASE_URL/api/subscription/generate-qr'),
+      body: jsonEncode({'userId': userId}),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to generate QR: ${response.body}');
+    }
+  }
+
+  static Future<bool> validateQrCode(String qrCode, String adminId) async {
+    final response = await http.post(
+      Uri.parse('$BASE_URL/api/subscription/validate-qr'),
+      body: jsonEncode({'qrCode': qrCode, 'adminId': adminId}),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    return response.statusCode == 200;
+  }
+
 }
