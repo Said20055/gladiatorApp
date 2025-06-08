@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gladiatorapp/core/services/subscription_service.dart';
@@ -22,7 +23,8 @@ class _QrGeneratorDialogState extends State<QrGeneratorDialog> {
   String? _qrCode;
   int? _remainingTime;
   Timer? _timer;
-  final Color _primaryColor = const Color(0xFFE53935); // Красный акцент
+  StreamSubscription<DocumentSnapshot>? _qrCodeSubscription;
+  final Color _primaryColor = const Color(0xFFE53935);
 
   @override
   void initState() {
@@ -38,6 +40,8 @@ class _QrGeneratorDialogState extends State<QrGeneratorDialog> {
         _remainingTime = 30;
       });
 
+      // Подписываемся на изменения QR-кода в Firestore
+      _subscribeToQrCodeUpdates(_qrCode!);
       _startTimer();
     } catch (e) {
       if (mounted) {
@@ -50,6 +54,22 @@ class _QrGeneratorDialogState extends State<QrGeneratorDialog> {
         Navigator.of(context).pop();
       }
     }
+  }
+
+  void _subscribeToQrCodeUpdates(String qrCode) {
+    _qrCodeSubscription = FirebaseFirestore.instance
+        .collection('qr_codes')
+        .doc(qrCode)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>;
+        if (data['isUsed'] == true && mounted) {
+          // Закрываем диалог, если код использован
+          Navigator.of(context).pop();
+        }
+      }
+    });
   }
 
   void _startTimer() {
@@ -77,6 +97,7 @@ class _QrGeneratorDialogState extends State<QrGeneratorDialog> {
   @override
   void dispose() {
     _timer?.cancel();
+    _qrCodeSubscription?.cancel();
     super.dispose();
   }
 

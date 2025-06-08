@@ -94,9 +94,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/svg/logo.svg
-    - assets/images/OnBoard1.png
-    - assets/images/OnBoard2.png
-    - assets/images/OnBoard3.png
+    - assets/svg/OnBoard1.svg
+    - assets/svg/OnBoard2.svg
+    - assets/svg/OnBoard3.svg
     - assets/images/logo.png
     - assets/.env
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,6 +31,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Subscription? _activeSubscription;
   bool _isLoading = true;
   bool _isSubscriptionLoading = false;
+  StreamSubscription<DocumentSnapshot>? _subscriptionStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
 
   Future<void> _fetchUserData() async {
     setState(() => _isLoading = true);
@@ -44,6 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         if (_userProfile?.activeSubscriptionId != null) {
           await _fetchActiveSubscription(_userProfile!.activeSubscriptionId!);
+          _subscribeToSubscriptionUpdates(_userProfile!.activeSubscriptionId!);
         }
       }
     } catch (e) {
@@ -53,6 +63,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _subscribeToSubscriptionUpdates(String subscriptionId) {
+    _subscriptionStream?.cancel();
+
+    _subscriptionStream = FirebaseFirestore.instance
+        .collection('subscriptions')
+        .doc(subscriptionId)
+        .snapshots()
+        .listen((snapshot) async {
+      if (snapshot.exists && mounted) {
+        setState(() {
+          _activeSubscription = Subscription.fromFirestore(snapshot);
+        });
+
+        if (_activeSubscription?.tariffId != null) {
+          await _fetchActiveTariff(_activeSubscription!.tariffId);
+        }
+      }
+    }, onError: (error) {
+      debugPrint('Ошибка подписки на изменения абонемента: $error');
+    });
   }
 
   Future<void> _fetchActiveSubscription(String subscriptionId) async {
@@ -65,7 +97,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .get();
 
       if (subscriptionDoc.exists) {
-        _activeSubscription = Subscription.fromFirestore(subscriptionDoc);
+        setState(() {
+          _activeSubscription = Subscription.fromFirestore(subscriptionDoc);
+        });
 
         if (_activeSubscription?.tariffId != null) {
           await _fetchActiveTariff(_activeSubscription!.tariffId);
@@ -88,7 +122,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .get();
 
       if (tariffDoc.exists) {
-        _activeTariff = Tariff.fromFirestore(tariffDoc);
+        setState(() {
+          _activeTariff = Tariff.fromFirestore(tariffDoc);
+        });
       }
     } catch (e) {
       debugPrint('Ошибка загрузки тарифа: $e');
@@ -104,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         userId: _userProfile!.uid,
         remainingSessions: _activeSubscription!.remainingSessions,
       ),
-    ).then((_) => _fetchUserData());
+    );
   }
 
   Future<void> _editProfile() async {
@@ -191,9 +227,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _fetchUserData();
+  void dispose() {
+    _subscriptionStream?.cancel();
+    super.dispose();
   }
 
   @override

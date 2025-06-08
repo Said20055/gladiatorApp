@@ -12,34 +12,36 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  final Color _primaryColor = const Color(0xFFE53935); // Красный акцент
 
   final List<Map<String, String>> _pages = [
     {
       'title': 'Отслеживайте прогресс',
       'subtitle': 'Следите за тренировками и наблюдайте реальные результаты со временем',
-      'image': 'assets/images/OnBoard1.png',
+      'image': 'assets/svg/OnBoard1.svg',
     },
     {
       'title': 'Персональные планы',
       'subtitle': 'Получайте индивидуальные планы тренировок на основе ваших целей',
-      'image': 'assets/images/OnBoard2.png',
+      'image': 'assets/svg/OnBoard2.svg',
     },
     {
       'title': 'Оставайтесь мотивированными',
       'subtitle': 'Тренируйтесь и станьте сильнее вместе с Gladiator!',
-      'image': 'assets/images/OnBoard3.png',
+      'image': 'assets/svg/OnBoard3.svg',
     },
-
   ];
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Scaffold(
       body: Stack(
         children: [
-          // Фон с градиентом (как в Splash Screen)
           Container(
-            color: Colors.white,
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
           ),
 
           PageView.builder(
@@ -49,18 +51,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               setState(() => _currentPage = index);
             },
             itemBuilder: (context, index) {
-              return _buildPage(_pages[index]);
+              return _buildPage(_pages[index], theme, isDarkMode);
             },
           ),
 
-          // Нижняя панель с индикаторами и кнопкой
           Positioned(
             bottom: 60,
             left: 0,
             right: 0,
             child: Column(
               children: [
-                // Индикаторы
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
@@ -72,27 +72,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       height: 8,
                       decoration: BoxDecoration(
                         color: _currentPage == index
-                            ? Colors.black
-                            : Colors.white60.withOpacity(0.5),
+                            ? _primaryColor
+                            : (isDarkMode ? Colors.grey[700] : Colors.grey[400]),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
-                // Кнопка
                 SizedBox(
                   width: MediaQuery.of(context).size.width * 0.8,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                      backgroundColor: _primaryColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
+                      elevation: 2,
                     ),
                     onPressed: () {
                       if (_currentPage < _pages.length - 1) {
@@ -121,7 +119,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildPage(Map<String, String> page) {
+  Widget _buildPage(Map<String, String> page, ThemeData theme, bool isDarkMode) {
     final imagePath = page['image']!;
     final isSvg = imagePath.toLowerCase().endsWith('.svg');
 
@@ -130,36 +128,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-
           const SizedBox(height: 40),
-
-          // Отрисовка изображения (SVG или растровое)
           isSvg
               ? SvgPicture.asset(
             imagePath,
             height: MediaQuery.of(context).size.height * 0.35,
+
           )
               : Image.asset(
             imagePath,
             height: MediaQuery.of(context).size.height * 0.35,
           ),
           const SizedBox(height: 40),
-
           Text(
             page['title']!,
-            style: const TextStyle(
-              color: Colors.black,
+            style: TextStyle(
+              color: theme.textTheme.titleLarge?.color,
               fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-
           Text(
             page['subtitle']!,
-            style: const TextStyle(
-              color: Colors.black,
+            style: TextStyle(
+              color: theme.textTheme.bodyLarge?.color,
               fontSize: 16,
             ),
             textAlign: TextAlign.center,
